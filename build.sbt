@@ -1,3 +1,4 @@
+import com.typesafe.tools.mima.core.*
 import org.scalajs.linker.interface.{CheckedBehavior, ESVersion}
 import sbt.*
 import scala.scalanative.build.*
@@ -127,7 +128,9 @@ lazy val publishSettings = Seq(
     else Set()
   },
   mimaReportSignatureProblems := true,
-  mimaBinaryIssueFilters := Seq()
+  mimaBinaryIssueFilters := Seq(
+    ProblemFilters.exclude[MissingClassProblem]("com.github.plokhotnyuk.jsoniter_scala.macros.ConfiguredJsonValueCodecWrapper")
+  )
 )
 
 lazy val `jsoniter-scala` = project.in(file("."))
@@ -152,7 +155,7 @@ lazy val `jsoniter-scala-core` = crossProject(JVMPlatform, JSPlatform, NativePla
   .settings(commonSettings)
   .settings(publishSettings)
   .settings(
-    crossScalaVersions := Seq("3.3.3", "2.13.15", "2.12.20"),
+    crossScalaVersions := Seq("3.3.4", "2.13.15", "2.12.20"),
     libraryDependencies ++= Seq(
       "org.scala-lang.modules" %%% "scala-collection-compat" % "2.12.0" % Test,
       "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % Test,
@@ -184,10 +187,11 @@ lazy val `jsoniter-scala-macros` = crossProject(JVMPlatform, JSPlatform, NativeP
   .settings(commonSettings)
   .settings(publishSettings)
   .settings(
-    crossScalaVersions := Seq("3.3.3", "2.13.15", "2.12.20"),
+    crossScalaVersions := Seq("3.3.4", "2.13.15", "2.12.20"),
     libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, _)) => Seq(
-        "org.scala-lang" % "scala-reflect" % scalaVersion.value
+        "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+        "com.beachape" %%% "enumeratum" % "1.7.5" % Test
       )
       case _ => Seq()
     }) ++ Seq(
@@ -198,25 +202,9 @@ lazy val `jsoniter-scala-macros` = crossProject(JVMPlatform, JSPlatform, NativeP
   )
 
 lazy val `jsoniter-scala-macrosJVM` = `jsoniter-scala-macros`.jvm
-  .settings(
-    libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, _)) => Seq(
-        "com.beachape" %%% "enumeratum" % "1.7.4" % Test
-      )
-      case _ => Seq()
-    })
-  )
 
 lazy val `jsoniter-scala-macrosJS` = `jsoniter-scala-macros`.js
   .settings(jsSettings)
-  .settings(
-    libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, _)) => Seq(
-        "com.beachape" %%% "enumeratum" % "1.7.4" % Test
-      )
-      case _ => Seq()
-    })
-  )
 
 lazy val `jsoniter-scala-macrosNative` = `jsoniter-scala-macros`.native
   .settings(nativeSettings)
@@ -227,7 +215,7 @@ lazy val `jsoniter-scala-circe` = crossProject(JVMPlatform, JSPlatform, NativePl
   .settings(commonSettings)
   .settings(publishSettings)
   .settings(
-    crossScalaVersions := Seq("3.3.3", "2.13.15", "2.12.20"),
+    crossScalaVersions := Seq("3.3.4", "2.13.15", "2.12.20"),
     libraryDependencies ++= Seq(
       "io.circe" %%% "circe-core" % "0.14.10",
       "io.circe" %%% "circe-parser" % "0.14.10" % Test,
@@ -249,27 +237,27 @@ lazy val `jsoniter-scala-benchmark` = crossProject(JVMPlatform, JSPlatform)
   .settings(commonSettings)
   .settings(noPublishSettings)
   .settings(
-    crossScalaVersions := Seq("3.5.2-RC1", "2.13.15"),
+    crossScalaVersions := Seq("3.5.2-RC2", "2.13.15"),
     scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, _)) => Seq()
       case _ => Seq("-source:3.3", "-Xmax-inlines:100")
     }),
     libraryDependencies ++= Seq(
-      "com.disneystreaming.smithy4s" %%% "smithy4s-json" % "0.18.24",
+      "com.disneystreaming.smithy4s" %%% "smithy4s-json" % "0.18.25",
       "com.evolutiongaming" %%% "play-json-jsoniter" % "0.10.3",
       "org.playframework" %%% "play-json" % "3.0.4",
       "dev.zio" %%% "zio-json" % "0.7.3",
       "io.circe" %%% "circe-generic" % "0.14.10",
       "io.circe" %%% "circe-jawn" % "0.14.10",
-      "com.lihaoyi" %%% "upickle" % "4.0.1",
+      "com.lihaoyi" %%% "upickle" % "4.0.2",
       "com.rallyhealth" %% "weepickle-v1" % "1.9.1",
       "io.spray" %% "spray-json" % "1.3.6",
       "org.json4s" %% "json4s-ext" % "4.1.0-M7",
       "org.json4s" %% "json4s-jackson" % "4.1.0-M7",
       "org.json4s" %% "json4s-native" % "4.1.0-M7",
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.0-rc1",
-      "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.18.0-rc1",
-      "com.fasterxml.jackson.module" % "jackson-module-blackbird" % "2.18.0-rc1",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.0",
+      "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.18.0",
+      "com.fasterxml.jackson.module" % "jackson-module-blackbird" % "2.18.0",
       "org.openjdk.jmh" % "jmh-core" % "1.37",
       "org.openjdk.jmh" % "jmh-generator-asm" % "1.37",
       "org.openjdk.jmh" % "jmh-generator-bytecode" % "1.37",
@@ -278,7 +266,7 @@ lazy val `jsoniter-scala-benchmark` = crossProject(JVMPlatform, JSPlatform)
     ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, _)) => Seq(
         "io.bullet" %%% "borer-derivation" % "1.8.0",
-        "com.avsystem.commons" %%% "commons-core" % "2.18.0",
+        "com.avsystem.commons" %%% "commons-core" % "2.20.0",
         "com.dslplatform" %% "dsl-json-scala" % "2.0.2"
       )
       case _ => Seq(

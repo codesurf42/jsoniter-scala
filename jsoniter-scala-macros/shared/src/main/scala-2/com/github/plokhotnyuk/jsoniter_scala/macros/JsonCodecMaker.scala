@@ -774,7 +774,7 @@ object JsonCodecMaker {
 
       def genReadEnumValue(enumValues: Seq[JavaEnumValueInfo], unexpectedEnumValueHandler: Tree): Tree = {
         def genReadCollisions(es: collection.Seq[JavaEnumValueInfo]): Tree =
-          es.foldRight(unexpectedEnumValueHandler) { case (e, acc) =>
+          es.foldRight(unexpectedEnumValueHandler) { (e, acc) =>
             q"if (in.isCharBufEqualsTo(l, ${e.name})) ${e.value} else $acc"
           }
 
@@ -1387,9 +1387,9 @@ object JsonCodecMaker {
         val classInfo = getClassInfo(tpe)
         val fields = classInfo.fields
         val mappedNames = fields.map(_.mappedName)
-        checkFieldNameCollisions(tpe, cfg.discriminatorFieldName.fold(Seq.empty[String]) { n =>
+        checkFieldNameCollisions(tpe, {
           if (discriminator.isEmpty) mappedNames
-          else mappedNames :+ n
+          else cfg.discriminatorFieldName.fold(mappedNames)(mappedNames :+ _)
         })
         val required: Set[String] = fields.collect {
           case fieldInfo if !(!cfg.requireDefaultFields && fieldInfo.symbol.isParamWithDefault || isOption(fieldInfo.resolvedTpe, types) ||
@@ -1451,13 +1451,12 @@ object JsonCodecMaker {
           val fTpe = fieldInfo.resolvedTpe
           q"var ${fieldInfo.tmpName}: $fTpe = ${fieldInfo.defaultValue.getOrElse(genNullValue(fTpe :: types))}"
         }
-        val readFields = cfg.discriminatorFieldName.fold(fields) { n =>
+        val readFields =
           if (discriminator.isEmpty) fields
-          else fields :+ FieldInfo(null, n, null, null, null, null, isStringified = true)
-        }
+          else cfg.discriminatorFieldName.fold(fields)(n => fields :+ FieldInfo(null, n, null, null, null, null, isStringified = true))
 
         def genReadCollisions(fs: collection.Seq[FieldInfo]): Tree =
-          fs.foldRight(unexpectedFieldHandler) { case (fieldInfo, acc) =>
+          fs.foldRight(unexpectedFieldHandler) { (fieldInfo, acc) =>
             val readValue =
               if (discriminator.nonEmpty && cfg.discriminatorFieldName.contains(fieldInfo.mappedName)) discriminator
               else {
@@ -1845,7 +1844,7 @@ object JsonCodecMaker {
             else genReadVal(subTpe :: types, genNullValue(subTpe :: types), isStringified, skipDiscriminatorField)
 
           def genReadCollisions(subTpes: collection.Seq[Type]): Tree =
-            subTpes.foldRight(discriminatorError) { case (subTpe, acc) =>
+            subTpes.foldRight(discriminatorError) { (subTpe, acc) =>
               val readVal =
                 if (cfg.discriminatorFieldName.isDefined) {
                   q"""in.rollbackToMark()
@@ -2190,25 +2189,26 @@ object JsonCodecMaker {
             else genWriteNonAbstractScalaClass(types, discriminator)
 
           val leafClasses = adtLeafClasses(tpe)
-          val writeSubclasses = (cfg.discriminatorFieldName match {
-            case None =>
-              val (leafModuleClasses, leafCaseClasses) =
-                leafClasses.partition(!cfg.circeLikeObjectEncoding && _.typeSymbol.isModuleClass)
-              leafCaseClasses.map { subTpe =>
+          val writeSubclasses = cfg.discriminatorFieldName.fold {
+            leafClasses.map { subTpe =>
+              if (!cfg.circeLikeObjectEncoding && subTpe.typeSymbol.isModuleClass) {
+                cq"x: $subTpe => ${genWriteConstantVal(discriminatorValue(subTpe))}"
+              } else {
                 cq"""x: $subTpe =>
-                       out.writeObjectStart()
-                       ${genWriteConstantKey(discriminatorValue(subTpe))}
-                       ${genWriteLeafClass(subTpe, EmptyTree)}
-                       out.writeObjectEnd()"""
-              } ++ leafModuleClasses.map(subTpe => cq"x: $subTpe => ${genWriteConstantVal(discriminatorValue(subTpe))}")
-            case Some(discrFieldName) =>
+                     out.writeObjectStart()
+                     ${genWriteConstantKey(discriminatorValue(subTpe))}
+                     ${genWriteLeafClass(subTpe, EmptyTree)}
+                     out.writeObjectEnd()"""
+              }
+            }
+          } { discrFieldName =>
               leafClasses.map { subTpe =>
                 val writeDiscriminatorField =
                   q"""..${genWriteConstantKey(discrFieldName)}
                       ..${genWriteConstantVal(discriminatorValue(subTpe))}"""
                 cq"x: $subTpe => ${genWriteLeafClass(subTpe, writeDiscriminatorField)}"
               }
-          })
+          }
           q"""x match {
                 case ..$writeSubclasses
               }"""
@@ -2222,11 +2222,16 @@ object JsonCodecMaker {
         q"""{
               @_root_.java.lang.SuppressWarnings(_root_.scala.Array("org.wartremover.warts.All"))
               val x = new _root_.com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec[$rootTpe] {
+                @inline
                 def nullValue: $rootTpe = ${genNullValue(rootTpe :: Nil)}
+
+                @inline
                 def decodeValue(in: _root_.com.github.plokhotnyuk.jsoniter_scala.core.JsonReader, default: $rootTpe): $rootTpe = ${
                   if (cfg.encodingOnly) q"???"
                   else genReadVal(rootTpe :: Nil, q"default", cfg.isStringified, EmptyTree)
                 }
+
+                @inline
                 def encodeValue(x: $rootTpe, out: _root_.com.github.plokhotnyuk.jsoniter_scala.core.JsonWriter): _root_.scala.Unit = ${
                   if (cfg.decodingOnly) q"???"
                   else genWriteVal(q"x", rootTpe :: Nil, cfg.isStringified, EmptyTree)

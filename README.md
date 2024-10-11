@@ -3,7 +3,7 @@
 [![Actions Build](https://github.com/plokhotnyuk/jsoniter-scala/workflows/build/badge.svg)](https://github.com/plokhotnyuk/jsoniter-scala/actions)
 [![Scala Steward](https://img.shields.io/badge/Scala_Steward-helping-brightgreen.svg?style=flat&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAQCAMAAAARSr4IAAAAVFBMVEUAAACHjojlOy5NWlrKzcYRKjGFjIbp293YycuLa3pYY2LSqql4f3pCUFTgSjNodYRmcXUsPD/NTTbjRS+2jomhgnzNc223cGvZS0HaSD0XLjbaSjElhIr+AAAAAXRSTlMAQObYZgAAAHlJREFUCNdNyosOwyAIhWHAQS1Vt7a77/3fcxxdmv0xwmckutAR1nkm4ggbyEcg/wWmlGLDAA3oL50xi6fk5ffZ3E2E3QfZDCcCN2YtbEWZt+Drc6u6rlqv7Uk0LdKqqr5rk2UCRXOk0vmQKGfc94nOJyQjouF9H/wCc9gECEYfONoAAAAASUVORK5CYII=)](https://scala-steward.org)
 [![Gitter Chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/plokhotnyuk/jsoniter-scala?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-[![Maven Central](https://img.shields.io/badge/maven--central-2.30.12-blue.svg)](https://repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/)
+[![Maven Central](https://img.shields.io/badge/maven--central-2.30.15-blue.svg)](https://repo1.maven.org/maven2/com/github/plokhotnyuk/jsoniter-scala/)
 
 Scala macros for compile-time generation of safe and ultra-fast JSON codecs.
 
@@ -32,7 +32,7 @@ compare performance of jsoniter-scala with: [circe](https://github.com/circe/cir
 [play-json with jsoniter-scala booster](https://github.com/evolution-gaming/play-json-tools/tree/master/play-json-jsoniter),
 [smithy4s-json](https://github.com/disneystreaming/smithy4s/tree/main/modules/json),
 [uPickle](https://github.com/lihaoyi/upickle), [zio-json](https://github.com/zio/zio-json)
-compiled by Scala.js 1.16.0 to ES 2015 with GCC v20220202 optimizations applied on
+compiled by Scala.js 1.17.0 to ES 2015 with GCC v20220202 optimizations applied on
 Intel® Core™ i7-11800H CPU @ 2.3GHz (max 4.6GHz), RAM 64Gb DDR4-3200, Ubuntu 23.10 (Linux 6.6).
 
 ## Contents
@@ -75,6 +75,11 @@ A bunch of SWAR technique tricks for JVM platform are based on following project
 - [FastDoubleParser](https://github.com/wrandelshofer/FastDoubleParser/blob/0903817a765b25e654f02a5a9d4f1476c98a80c9/src/main/java/ch.randelshofer.fastdoubleparser/ch/randelshofer/fastdoubleparser/FastDoubleSimd.java#L114-L130) - the fast parsing of numbers by 8-byte words
 - [Johnny Lee's article](https://johnnylee-sde.github.io/Fast-time-string-to-seconds/) - the fast time string to seconds
   conversion
+
+Big kudos to all contributors:
+
+[![GitHub contributors](https://contrib.rocks/image?repo=plokhotnyuk/jsoniter-scala)](https://github.com/plokhotnyuk/jsoniter-scala/graphs/contributors)
+
 
 ## Goals
 
@@ -237,14 +242,20 @@ case class User(name: String, devices: Seq[Device])
 ```
 
 Add the core library with a "compile" scope and the macros library with "compile-internal" or "provided" scopes to your 
-list of dependencies:
+list of sbt dependencies:
 ```sbt
 libraryDependencies ++= Seq(
   // Use the %%% operator instead of %% for Scala.js and Scala Native 
-  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-core"   % "2.30.12",
+  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-core"   % "2.30.15",
   // Use the "provided" scope instead when the "compile-internal" scope is not supported  
-  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.12" % "compile-internal"
+  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "2.30.15" % "compile-internal"
 )
+```
+In the beginning of Scala CLI script use "dep" scope for the core library or "compileOnly.dep" scope for the macros
+libary:
+```scala
+//> using dep "com.github.plokhotnyuk.jsoniter-scala::jsoniter-scala-core::2.30.15"
+//> using compileOnly.dep "com.github.plokhotnyuk.jsoniter-scala::jsoniter-scala-macros::2.30.15"
 ```
 
 Derive a codec for the top-level type that need to be parsed or serialized:
